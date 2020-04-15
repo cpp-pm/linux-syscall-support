@@ -41,6 +41,7 @@ LDFLAGS += -static
 
 TESTS = \
 	fallocate \
+	sigaction \
 	sigtimedwait \
 	unlink \
 
