@@ -1,4 +1,4 @@
-/* Copyright 2018, Google Inc.  All rights reserved.
+/* Copyright 2021, Google Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,48 +27,41 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Make sure it's defined before including anything else.  A number of syscalls
- * are GNU extensions and rely on being exported by glibc.
- */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
+#include "test_skel.h"
 
-/*
- * Make sure the assert checks aren't removed as all the unittests are based
- * on them.
- */
-#undef NDEBUG
+int main(int argc, char *argv[]) {
+  int exit_status = 0;
 
-#include <assert.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/prctl.h>
-#include <sys/stat.h>
-#include <sys/vfs.h>
-#include <sys/wait.h>
+  // Get two unique paths to play with.
+  char foo[] = "tempfile.XXXXXX";
+  int fd_foo = mkstemp(foo);
+  assert(fd_foo != -1);
 
-#include <linux/capability.h>
+  // Make sure it exists.
+  assert(access(foo, F_OK) == 0);
 
-#include "linux_syscall_support.h"
+  // Make sure sys_stat() and a libc stat() implementation return the same
+  // information.
+  struct stat libc_stat;
+  assert(stat(foo, &libc_stat) == 0);
 
-#define SKIP_TEST_EXIT_STATUS 77
-
-void assert_buffers_eq_len(const void *buf1, const void *buf2, size_t len) {
-  const uint8_t *u8_1 = (const uint8_t *)buf1;
-  const uint8_t *u8_2 = (const uint8_t *)buf2;
-  size_t i;
-
-  for (i = 0; i < len; ++i) {
-    if (u8_1[i] != u8_2[i])
-      printf("offset %zu: %02x != %02x\n", i, u8_1[i], u8_2[i]);
+  struct kernel_stat raw_stat;
+  // We need to check our stat syscall for EOVERFLOW, as sometimes the integer
+  // types used in the stat structures are too small to fit the actual value.
+  // E.g. on some systems st_ino is 32-bit, but some filesystems have 64-bit
+  // inodes.
+  int rc = sys_stat(foo, &raw_stat);
+  if (rc < 0 && errno == EOVERFLOW) {
+    // Bail out since we had an overflow in the stat structure.
+    exit_status = SKIP_TEST_EXIT_STATUS;
+    goto cleanup;
   }
+  assert(rc == 0);
+
+  assert(libc_stat.st_ino == raw_stat.st_ino);
+
+
+cleanup:
+  sys_unlink(foo);
+  return exit_status;
 }
-#define assert_buffers_eq(obj1, obj2) assert_buffers_eq_len(obj1, obj2, sizeof(*obj1))

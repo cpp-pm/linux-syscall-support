@@ -1097,6 +1097,9 @@ struct kernel_statfs {
 #ifndef __NR_ioprio_get
 #define __NR_ioprio_get         (__NR_SYSCALL_BASE + 315)
 #endif
+#ifndef __NR_fstatat64
+#define __NR_fstatat64          (__NR_SYSCALL_BASE + 327)
+#endif
 #ifndef __NR_move_pages
 #define __NR_move_pages         (__NR_SYSCALL_BASE + 344)
 #endif
@@ -3860,9 +3863,13 @@ struct kernel_statfs {
     LSS_INLINE _syscall1(int,     sigreturn,       unsigned long, u)
   #endif
   #if defined(__NR_stat)
-    // stat is polyfilled below when not available.
+    // stat and lstat are polyfilled below when not available.
     LSS_INLINE _syscall2(int,     stat,            const char*, f,
                         struct kernel_stat*,   b)
+  #endif
+  #if defined(__NR_lstat)
+    LSS_INLINE _syscall2(int,     lstat,           const char*, f,
+                         struct kernel_stat*,   b)
   #endif
   LSS_INLINE _syscall2(int,     statfs,          const char*, f,
                       struct kernel_statfs*, b)
@@ -4786,6 +4793,12 @@ struct kernel_statfs {
   LSS_INLINE int LSS_NAME(stat)(const char *pathname,
                                 struct kernel_stat *buf) {
     return LSS_NAME(newfstatat)(AT_FDCWD, pathname, buf, 0);
+  }
+#endif
+#if !defined(__NR_lstat)
+  LSS_INLINE int LSS_NAME(lstat)(const char *pathname,
+                                 struct kernel_stat *buf) {
+    return LSS_NAME(newfstatat)(AT_FDCWD, pathname, buf, AT_SYMLINK_NOFOLLOW);
   }
 #endif
 
