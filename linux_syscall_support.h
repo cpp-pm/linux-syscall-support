@@ -88,7 +88,7 @@
  */
 #if (defined(__i386__) || defined(__x86_64__) || defined(__ARM_ARCH_3__) ||   \
      defined(__mips__) || defined(__PPC__) || defined(__ARM_EABI__) || \
-     defined(__aarch64__) || defined(__s390__)) || defined(__e2k__)  \
+     defined(__aarch64__) || defined(__s390__) || defined(__e2k__))  \
   && (defined(__linux) || defined(__ANDROID__))
 
 #ifndef SYS_CPLUSPLUS
@@ -1924,8 +1924,8 @@ struct kernel_statfs {
   #endif
 
   #undef  LSS_RETURN
-  #if (defined(__i386__) || defined(__x86_64__) || defined(__ARM_ARCH_3__) \
-       || defined(__ARM_EABI__) || defined(__aarch64__) || defined(__s390__)) \
+  #if defined(__i386__) || defined(__x86_64__) || defined(__ARM_ARCH_3__) \
+       || defined(__ARM_EABI__) || defined(__aarch64__) || defined(__s390__) \
        || defined(__e2k__)
   /* Failing system calls return a negative result in the range of
    * -1..-4095. These are "errno" values with the sign inverted.
